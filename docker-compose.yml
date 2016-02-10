@@ -1,0 +1,36 @@
+kafka:
+  restart: on-failure
+  image: spotify/kafka
+  ports:
+    - "2181:2181"
+    - "9092:9092"
+  environment:
+    - ADVERTISED_HOST=172.17.11.51
+    - ADVERTISED_PORT=9092
+    - AUTO_CREATE_TOPICS=true
+
+concord:
+  build: ./concord
+  restart: on-failure
+  links:
+    - mesos:mesos
+    - kafka:kafka
+    - kafka:zookeeper
+  ports:
+    - "11211:11211"
+
+mesos:
+  restart: on-failure
+  build: ./master
+  links:
+    - kafka:kafka
+    - kafka:zookeeper
+  ports:
+    - "5050:5050"
+  command: mesos-master --zk=zk://zookeeper:2181/mesos --ip=0.0.0.0 --quorum=1 --work_dir=/var/lib/mesos
+
+mesosslave:
+  restart: on-failure
+  build: ./slave
+  net: host
+  command: mesos-slave --master=zk://localhost:2181/mesos --ip=172.17.11.51 --work_dir=/tmp/mesos --hostname=mesos
